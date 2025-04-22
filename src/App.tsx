@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { calculateDistance } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 import type { Session } from '@supabase/supabase-js';
+import { MapComponent } from '@/components/Map';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type Location = Database['public']['Tables']['locations']['Row'];
@@ -343,6 +344,21 @@ function App() {
               'Enable location to see people nearby'
             )}
           </span>
+        </div>
+
+        {/* Map Component */}
+        <div className="mb-6">
+          <MapComponent 
+            userLocation={userLocation ? {
+              lat: userLocation.latitude,
+              lng: userLocation.longitude
+            } : undefined}
+            nearbyUsers={nearbyUsers.map(user => ({
+              lat: user.location.lat,
+              lng: user.location.lng,
+              username: user.username
+            }))}
+          />
         </div>
 
         {/* Nearby Users */}
