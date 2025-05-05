@@ -3,6 +3,7 @@ import { StyleSheet, View, Text } from 'react-native';
 import GoogleMapReact from 'google-map-react';
 import { UserProfile, Place } from '@/types';
 import Colors from '@/constants/Colors';
+import Constants from 'expo-constants';
 
 interface MarkerProps {
   lat: number;
@@ -51,10 +52,21 @@ export default function RadiusMap({
     zoom: 13
   };
 
+  const apiKey = Constants.expoConfig?.extra?.googleMapsApiKey || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey) {
+    console.error('Google Maps API key is missing');
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text>Map is not available. Please check your API key configuration.</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <GoogleMapReact
-        bootstrapURLKeys={{ key: 'AIzaSyBafJwGgZ9B10l6cH5x9wfJLv5ye6lTDMw' }}
+        bootstrapURLKeys={{ key: apiKey }}
         defaultCenter={defaultProps.center}
         defaultZoom={defaultProps.zoom}
         options={{

@@ -11,17 +11,27 @@ import { useLocation } from '@/hooks/useLocation';
 import Button from '@/components/common/Button';
 
 export default function MapScreen() {
-  const { location, errorMsg } = useLocation();
+  const { location, errorMsg, isLoading } = useLocation();
   const searchRadius = useUserStore(state => state.searchRadius);
   const { nearbyUsers, fetchNearbyUsers } = useUserStore();
   const { places, fetchNearbyPlaces } = usePlacesStore();
   
   useEffect(() => {
-    if (location) {
+    if (location?.coords) {
       fetchNearbyUsers(location.coords.latitude, location.coords.longitude);
       fetchNearbyPlaces(location.coords.latitude, location.coords.longitude, searchRadius);
     }
   }, [location, searchRadius]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Getting your location...</Text>
+        </View>
+      </View>
+    );
+  }
 
   if (errorMsg) {
     return (
@@ -38,11 +48,16 @@ export default function MapScreen() {
     );
   }
 
-  if (!location) {
+  if (!location?.coords) {
     return (
       <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text>Getting your location...</Text>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Unable to get your location</Text>
+          <Button 
+            title="Try Again"
+            onPress={() => {/* Implement retry */}}
+            type="outline"
+          />
         </View>
       </View>
     );

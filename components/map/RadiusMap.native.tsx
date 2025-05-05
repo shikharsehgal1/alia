@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Platform, Text } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Circle, Marker } from 'react-native-maps';
 import { UserProfile, Place } from '@/types';
 import Colors from '@/constants/Colors';
+import Constants from 'expo-constants';
 
 interface RadiusMapProps {
   userLocation: {
@@ -37,18 +38,32 @@ export default function RadiusMap({
     }
   }, [userLocation, radius]);
 
+  // Check if we have a valid Google Maps API key
+  const apiKey = Constants.expoConfig?.extra?.googleMapsApiKey || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey) {
+    console.error('Google Maps API key is missing');
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text>Map is not available. Please check your API key configuration.</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'ios' ? undefined : PROVIDER_GOOGLE}
         initialRegion={{
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421,
         }}
+        showsUserLocation
+        showsMyLocationButton
       >
         <Marker
           coordinate={userLocation}

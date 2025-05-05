@@ -15,6 +15,7 @@ type UserState = {
   error: string | null;
   searchRadius: number;
   lastLocation: { latitude: number; longitude: number };
+  locationError: string | null;
 };
 
 type UserActions = {
@@ -22,6 +23,7 @@ type UserActions = {
   updateSearchRadius: (radius: number) => void;
   rateUser: (userId: string, rating: number) => Promise<void>;
   updateUserLocation: (latitude: number, longitude: number) => Promise<void>;
+  clearLocationError: () => void;
 };
 
 export const useUserStore = create<UserState & UserActions>((set, get) => ({
@@ -31,10 +33,17 @@ export const useUserStore = create<UserState & UserActions>((set, get) => ({
   error: null,
   searchRadius: 5,
   lastLocation: DEFAULT_LOCATION,
+  locationError: null,
 
   fetchNearbyUsers: async (latitude, longitude) => {
     const state = get();
     
+    // Validate coordinates
+    if (isNaN(latitude) || isNaN(longitude)) {
+      set({ locationError: 'Invalid location coordinates' });
+      return;
+    }
+
     // If we have a last location and it's close to the current location, skip update
     if (state.lastLocation) {
       const distance = calculateDistance(
@@ -50,7 +59,7 @@ export const useUserStore = create<UserState & UserActions>((set, get) => ({
       }
     }
 
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, locationError: null });
     try {
       // Mock API call - replace with actual API integration
       const mockUsers: UserProfile[] = [
@@ -91,12 +100,14 @@ export const useUserStore = create<UserState & UserActions>((set, get) => ({
         users: mockUsers,
         nearbyUsers,
         lastLocation: { latitude, longitude },
-        isLoading: false 
+        isLoading: false,
+        locationError: null
       });
     } catch (error) {
       set({ 
         isLoading: false, 
-        error: (error as Error).message 
+        error: (error as Error).message,
+        locationError: 'Failed to fetch nearby users'
       });
     }
   },
@@ -134,18 +145,33 @@ export const useUserStore = create<UserState & UserActions>((set, get) => ({
   },
 
   updateUserLocation: async (latitude, longitude) => {
+    // Validate coordinates
+    if (isNaN(latitude) || isNaN(longitude)) {
+      set({ locationError: 'Invalid location coordinates' });
+      return;
+    }
+
     try {
       // Mock API call - replace with actual API integration
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      set({ lastLocation: { latitude, longitude } });
+      set({ 
+        lastLocation: { latitude, longitude },
+        locationError: null
+      });
       
       // Fetch nearby users with new location
       await get().fetchNearbyUsers(latitude, longitude);
     } catch (error) {
       console.error('Error updating user location:', error);
-      // If location update fails, use default location
-      set({ lastLocation: DEFAULT_LOCATION });
+      set({ 
+        locationError: 'Failed to update location',
+        lastLocation: DEFAULT_LOCATION 
+      });
     }
+  },
+
+  clearLocationError: () => {
+    set({ locationError: null });
   }
 }));
