@@ -4,10 +4,18 @@ import { UserProfile, Place } from '@/types';
 import Colors from '@/constants/Colors';
 
 interface RadiusMapProps {
-  userLocation: {
+  region: {
     latitude: number;
     longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
   };
+  onRegionChangeComplete: (region: {
+    latitude: number;
+    longitude: number;
+    latitudeDelta?: number;
+    longitudeDelta?: number;
+  }) => void;
   radius: number;
   users?: UserProfile[];
   places?: Place[];
@@ -15,12 +23,11 @@ interface RadiusMapProps {
   onPlacePress?: (place: Place) => void;
 }
 
-let RadiusMapNative: React.ComponentType<RadiusMapProps> | null = null;
-
-// Only import the native component on native platforms
-if (Platform.OS !== 'web') {
-  RadiusMapNative = require('./RadiusMapNative').default;
-}
+// Import platform-specific components
+const RadiusMapNative = Platform.select({
+  native: require('./RadiusMap.native').default,
+  default: null,
+});
 
 export default function RadiusMap(props: RadiusMapProps) {
   if (Platform.OS === 'web') {

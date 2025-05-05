@@ -1,15 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, Platform, Text } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, Circle, Marker } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, Circle, Marker, Region } from 'react-native-maps';
 import { UserProfile, Place } from '@/types';
 import Colors from '@/constants/Colors';
 import Constants from 'expo-constants';
 
 interface RadiusMapProps {
-  userLocation: {
+  region: {
     latitude: number;
     longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
   };
+  onRegionChangeComplete: (region: Region) => void;
   radius: number;
   users?: UserProfile[];
   places?: Place[];
@@ -18,7 +21,8 @@ interface RadiusMapProps {
 }
 
 export default function RadiusMap({ 
-  userLocation, 
+  region,
+  onRegionChangeComplete,
   radius, 
   users = [], 
   places = [], 
@@ -26,17 +30,6 @@ export default function RadiusMap({
   onPlacePress 
 }: RadiusMapProps) {
   const mapRef = useRef<MapView>(null);
-
-  useEffect(() => {
-    if (mapRef.current && userLocation) {
-      mapRef.current.animateToRegion({
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: radius * 0.022,
-        longitudeDelta: radius * 0.022,
-      });
-    }
-  }, [userLocation, radius]);
 
   // Check if we have a valid Google Maps API key
   const apiKey = Constants.expoConfig?.extra?.googleMapsApiKey || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -56,23 +49,25 @@ export default function RadiusMap({
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'ios' ? undefined : PROVIDER_GOOGLE}
-        initialRegion={{
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
-        }}
+        initialRegion={region}
+        onRegionChangeComplete={onRegionChangeComplete}
         showsUserLocation
         showsMyLocationButton
       >
         <Marker
-          coordinate={userLocation}
+          coordinate={{
+            latitude: region.latitude,
+            longitude: region.longitude
+          }}
           pinColor={Colors.light.tint}
           title="Your Location"
         />
         
         <Circle
-          center={userLocation}
+          center={{
+            latitude: region.latitude,
+            longitude: region.longitude
+          }}
           radius={radius * 1000}
           strokeWidth={1}
           strokeColor={Colors.light.tint}
@@ -107,12 +102,11 @@ export default function RadiusMap({
 
 const styles = StyleSheet.create({
   container: {
-    height: 300,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 16,
+    flex: 1,
+    height: 400,
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
 });
