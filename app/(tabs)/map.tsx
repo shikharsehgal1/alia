@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Modal } from 'react-native';
-import { Settings, User, MapPin } from 'lucide-react-native';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { Settings, User, MapPin, Share2 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 import Colors from '@/constants/Colors';
 import { spacing, fontSizes, fontWeights } from '@/constants/Styles';
 import RadiusMap from '@/components/map/RadiusMap';
+import { UserProfile } from '@/types';
 import { useUserStore } from '@/store/useUserStore';
 import { usePlacesStore } from '@/store/usePlacesStore';
 import { useLocation } from '@/hooks/useLocation';
+import { useLocationStore } from '@/store/useLocationStore';
 import Button from '@/components/common/Button';
+import { useChatStore } from '@/store/useChatStore';
+import LocationSharingModal from '@/components/map/LocationSharingModal';
 
 const DEFAULT_LOCATION = {
   latitude: 37.7749,
@@ -18,12 +23,16 @@ const DEFAULT_LOCATION = {
 };
 
 export default function MapScreen() {
+  const router = useRouter();
   const { updateLocation } = useLocation();
   const searchRadius = useUserStore(state => state.searchRadius);
   const { nearbyUsers, fetchNearbyUsers } = useUserStore();
   const { places, fetchNearbyPlaces } = usePlacesStore();
+  const { createConversation } = useChatStore();
+  const { shareMode, isSharing, startSharing } = useLocationStore();
 
   const [region, setRegion] = useState(DEFAULT_LOCATION);
+  const [showSharingModal, setShowSharingModal] = useState(false);
 
   // fetch users & places whenever center or radius changes
   useEffect(() => {
@@ -54,18 +63,39 @@ export default function MapScreen() {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
         }));
+        // If sharing is enabled, start sharing after getting location
+        if (shareMode !== 'never') {
+          startSharing();
+        }
       }
     } catch (err) {
       console.warn('Location permission denied or unavailable');
     }
   };
 
+  const handleUserPress = (user: UserProfile) => {
+    const conversationId = createConversation({
+      id: user.id,
+      name: user.name,
+      image: user.image || 'https://via.placeholder.com/150',
+    });
+    router.push(`/chat/${conversationId}`);
+  };
+
   return (
     <View style={styles.container}>
-      {/* Header with "Locate Me" */}
+      {/* Header with "Locate Me" and "Share Location" */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Explore</Text>
-        <Button title="Locate Me" onPress={handleLocateMe} />
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={[styles.shareButton, isSharing && styles.shareButtonActive]}
+            onPress={() => setShowSharingModal(true)}
+          >
+            <Share2 size={20} color={isSharing ? 'white' : Colors.light.tint} />
+          </TouchableOpacity>
+          <Button title="Locate Me" onPress={handleLocateMe} />
+        </View>
       </View>
 
       {/* Map */}
@@ -75,6 +105,7 @@ export default function MapScreen() {
         radius={searchRadius}
         users={nearbyUsers}
         places={places}
+        onUserPress={handleUserPress}
       />
 
       {/* Stats Footer */}
@@ -94,6 +125,12 @@ export default function MapScreen() {
           <Text style={styles.statLabel}>Radius</Text>
         </View>
       </View>
+
+      {/* Location Sharing Modal */}
+      <LocationSharingModal
+        visible={showSharingModal}
+        onClose={() => setShowSharingModal(false)}
+      />
     </View>
   );
 }
@@ -115,6 +152,20 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: fontSizes.xl,
     fontWeight: fontWeights.bold as '700',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  shareButton: {
+    padding: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.tint,
+  },
+  shareButtonActive: {
+    backgroundColor: Colors.light.tint,
   },
   statsContainer: {
     flexDirection: 'row',

@@ -35,6 +35,7 @@ type ChatActions = {
   getConversation: (id: string) => Conversation | undefined;
   sendMessage: (conversationId: string, text: string) => Promise<void>;
   markAsRead: (conversationId: string) => Promise<void>;
+  createConversation: (user: ChatUser) => string;
 };
 
 // Mock data
@@ -100,12 +101,32 @@ const MOCK_CONVERSATIONS: Conversation[] = [
 ];
 
 export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
-  conversations: MOCK_CONVERSATIONS,
+  conversations: [],
   isLoading: false,
   error: null,
 
   getConversation: (id) => {
     return get().conversations.find(conv => conv.id === id);
+  },
+
+  createConversation: (user) => {
+    const conversationId = `conv_${Date.now()}`;
+    const newConversation: Conversation = {
+      id: conversationId,
+      user,
+      messages: [],
+      lastMessage: {
+        text: '',
+        timestamp: new Date().toISOString(),
+        read: true,
+      },
+    };
+
+    set(state => ({
+      conversations: [...state.conversations, newConversation],
+    }));
+
+    return conversationId;
   },
 
   sendMessage: async (conversationId, text) => {

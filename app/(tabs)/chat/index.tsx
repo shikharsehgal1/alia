@@ -14,19 +14,42 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
-
+import { useChatStore } from '@/store/useChatStore';
 import Colors from '@/constants/Colors';
 import { spacing, fontSizes, fontWeights } from '@/constants/Styles';
-import { useChatStore } from '@/store/useChatStore';
+import { Ionicons } from '@expo/vector-icons';
+
 import Input from '@/components/common/Input';
 
 const AnimatedInput = Animated.createAnimatedComponent(Input);
+
+interface Conversation {
+  id: string;
+  user: {
+    id: string;
+    name: string;
+    image: string;
+  };
+  messages: Array<{
+    id: string;
+    text: string;
+    senderId: string;
+    timestamp: string;
+    read: boolean;
+  }>;
+  lastMessage: {
+    text: string;
+    timestamp: string;
+    read: boolean;
+  };
+}
 
 export default function ChatScreen() {
   const router = useRouter();
   const { conversations, isLoading } = useChatStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const searchBarStyle = useAnimatedStyle(() => ({
     width: withSpring(isSearchFocused ? '100%' : '100%', {
@@ -64,6 +87,47 @@ export default function ChatScreen() {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    // Simulate refresh
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsRefreshing(false);
+  };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="chatbubble-ellipses-outline" size={64} color={Colors.light.tint} />
+      <Text style={styles.emptyStateTitle}>No Conversations Yet</Text>
+      <Text style={styles.emptyStateText}>
+        Start chatting with people you find nearby on the map!
+      </Text>
+    </View>
+  );
+
+  const renderConversation = ({ item }: { item: Conversation }) => (
+    <TouchableOpacity
+      style={styles.conversationItem}
+      onPress={() => router.push(`/chat/${item.id}`)}
+    >
+      <Image source={{ uri: item.user.image }} style={styles.avatar} />
+      <View style={styles.conversationInfo}>
+        <Text style={styles.name}>{item.user.name}</Text>
+        <Text style={styles.lastMessage} numberOfLines={1}>
+          {item.lastMessage.text || 'Start a conversation'}
+        </Text>
+      </View>
+      <View style={styles.conversationMeta}>
+        <Text style={styles.timestamp}>
+          {new Date(item.lastMessage.timestamp).toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })}
+        </Text>
+        {!item.lastMessage.read && <View style={styles.unreadDot} />}
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -82,58 +146,15 @@ export default function ChatScreen() {
         />
       </View>
 
-      {filteredConversations.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No messages yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Start chatting with people nearby to make new connections
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredConversations}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.conversationItem}
-              onPress={() => router.push(`/chat/${item.id}`)}
-              activeOpacity={0.7}
-            >
-              <Image
-                source={{ uri: item.user.image }}
-                style={styles.avatar}
-              />
-              
-              <View style={styles.conversationContent}>
-                <View style={styles.conversationHeader}>
-                  <Text style={styles.userName}>{item.user.name}</Text>
-                  <Text style={styles.timeText}>
-                    {getTimeString(item.lastMessage.timestamp)}
-                  </Text>
-                </View>
-                
-                <View style={styles.messagePreview}>
-                  <Text 
-                    style={[
-                      styles.lastMessage,
-                      !item.lastMessage.read && styles.unreadMessage
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.lastMessage.text}
-                  </Text>
-                  {!item.lastMessage.read && (
-                    <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadCount}>1</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
+      <FlatList
+        data={filteredConversations}
+        renderItem={renderConversation}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={renderEmptyState}
+        refreshing={isRefreshing}
+        onRefresh={handleRefresh}
+      />
     </View>
   );
 }
@@ -162,83 +183,66 @@ const styles = StyleSheet.create({
   searchInput: {
     marginBottom: 0,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emptyTitle: {
-    fontSize: fontSizes.lg,
-    fontWeight: fontWeights.bold as '700',
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: fontSizes.md,
-    color: Colors.light.secondaryText,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
   listContent: {
-    paddingBottom: spacing.xl,
+    flexGrow: 1,
   },
   conversationItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.lg,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: Colors.light.lightGrey,
+    alignItems: 'center',
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginRight: spacing.md,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
   },
-  conversationContent: {
+  conversationInfo: {
     flex: 1,
   },
-  conversationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  userName: {
-    fontSize: fontSizes.md,
-    fontWeight: fontWeights.bold as '700',
-  },
-  timeText: {
-    fontSize: fontSizes.sm,
-    color: Colors.light.secondaryText,
-  },
-  messagePreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  name: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   lastMessage: {
-    fontSize: fontSizes.md,
-    color: Colors.light.secondaryText,
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  unreadMessage: {
+    fontSize: 14,
     color: Colors.light.text,
-    fontWeight: fontWeights.medium as '500',
+    opacity: 0.7,
   },
-  unreadBadge: {
+  conversationMeta: {
+    alignItems: 'flex-end',
+  },
+  timestamp: {
+    fontSize: 12,
+    color: Colors.light.text,
+    opacity: 0.5,
+    marginBottom: 4,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: Colors.light.tint,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  },
+  emptyState: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
-  unreadCount: {
-    color: 'white',
-    fontSize: fontSizes.xs,
-    fontWeight: fontWeights.bold as '700',
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: Colors.light.text,
+    opacity: 0.7,
   },
 });
